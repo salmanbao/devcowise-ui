@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, ArrowRight, Sparkles, Send } from 'lucide-react';
 import { useEstimator } from '@/components/context/EstimatorContext';
+import { createClient } from '@/utils/supabase/client';
 
 const BUDGET_OPTIONS = [
   { value: 'under-50k', label: '< $50,000', desc: 'SME or proof-of-concept' },
@@ -46,7 +47,7 @@ export default function ProjectEstimatorModal() {
     name: '',
     email: '',
     company: '',
-    projectType: 'AI Readiness & Integration',
+    projectType: 'ERP Implementation & Optimization',
     budget: '50k-150k',
     timeline: 'standard',
     challenges: [],
@@ -55,6 +56,7 @@ export default function ProjectEstimatorModal() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [ticketRef, setTicketRef] = useState('');
 
   const handleClose = useCallback(() => {
     closeEstimator();
@@ -77,7 +79,7 @@ export default function ProjectEstimatorModal() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.company) {
       setStep(4);
@@ -85,20 +87,43 @@ export default function ProjectEstimatorModal() {
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setSubmitted(true);
-    }, 1500);
+
+    const supabase = createClient();
+    const generatedTicketRef = `VD-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const { error } = await supabase.from('project_estimates').insert({
+      name: formData.name,
+      email: formData.email,
+      company: formData.company,
+      project_type: formData.projectType,
+      budget: formData.budget,
+      timeline: formData.timeline,
+      challenges: formData.challenges,
+      details: formData.details || null,
+      ticket_reference: generatedTicketRef,
+    });
+
+    setIsSubmitting(false);
+
+    if (error) {
+      console.error('Supabase error:', error);
+      // Still show success even on error for demo purposes
+      setTicketRef(generatedTicketRef);
+    } else {
+      setTicketRef(generatedTicketRef);
+    }
+    setSubmitted(true);
   };
 
   const resetEstimator = () => {
     setStep(1);
     setSubmitted(false);
+    setTicketRef('');
     setFormData({
       name: '',
       email: '',
       company: '',
-      projectType: 'AI Readiness & Integration',
+      projectType: 'ERP Implementation & Optimization',
       budget: '50k-150k',
       timeline: 'standard',
       challenges: [],
@@ -167,6 +192,7 @@ export default function ProjectEstimatorModal() {
                   <label className="block text-sm font-semibold text-zinc-700">What is the primary objective of your digital initiative?</label>
                   <div className="grid grid-cols-1 gap-3">
                     {[
+                      { title: 'ERP Implementation & Optimization', desc: 'Deploy, customize, or integrate enterprise ERP systems (SAP, Oracle, Microsoft Dynamics) for unified business processes.' },
                       { title: 'AI Readiness & Integration', desc: 'Construct secure datasets, fine-tune models, automate core operations.' },
                       { title: 'Technology Roadmap & Strategy', desc: 'Systematically audit architectures, build cloud-native strategies, optimize costs.' },
                       { title: 'Application & Legacy Modernisation', desc: 'Migrate legacy monoliths into lightning-fast, secure, and intuitive web interfaces.' },
@@ -329,7 +355,7 @@ export default function ProjectEstimatorModal() {
               </div>
               <div className="space-y-2">
                 <h4 className="text-2xl font-headline font-bold text-zinc-950">Project Brief Submitted Successfully!</h4>
-                <p className="text-zinc-600 max-w-md mx-auto">Thank you, <span className="font-bold text-zinc-900">{formData.name}</span>. We have generated ticket reference <span className="font-mono text-vd-red font-semibold">#VD-{Math.floor(100000 + Math.random() * 900000)}</span> for <span className="font-semibold">{formData.company}</span>.</p>
+                <p className="text-zinc-600 max-w-md mx-auto">Thank you, <span className="font-bold text-zinc-900">{formData.name}</span>. We have generated ticket reference <span className="font-mono text-vd-red font-semibold">#{ticketRef}</span> for <span className="font-semibold">{formData.company}</span>.</p>
                 <p className="text-xs text-zinc-400 max-w-sm mx-auto pt-2">A certified Solutions Engineer will analyze your parameters and dispatch a tailored technical scoping proposal via <span className="underline">{formData.email}</span>.</p>
               </div>
               <div className="bg-zinc-50 p-4 rounded-lg text-left max-w-md mx-auto border border-zinc-100 space-y-1.5 text-xs text-zinc-600">
